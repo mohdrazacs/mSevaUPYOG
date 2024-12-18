@@ -45,6 +45,7 @@ import org.egov.mdms.model.MdmsResponse;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -98,6 +99,7 @@ public class MsevaSsoService {
 	    try {
 	        Map<String, Object> responseMap = (Map<String, Object>) restCallRepository.fetchResult(uri, apiRequest);
 	        
+			System.out.println(responseMap);
 	        if(responseMap != null) {
 	        	Object responseObj = responseMap.get(propertiesManager.hrmsEsevaApiResponseObjectResp); //hrmsEsevaApiResponseObjectResp
 	        	respValue = Integer.parseInt(responseObj.toString());
@@ -373,6 +375,7 @@ public class MsevaSsoService {
 		
 		int rd = ReadValuesFromApi(encdata);
         String message = null;
+		System.out.println(rd);
         if(rd == 0) {
         	message = msevaSsoConstants.AUTHFAIL_RESPSTATUS;
         }
@@ -415,6 +418,174 @@ public class MsevaSsoService {
             return null; 
         }
     }
+
+
+
+
+	public Map<String, Object> fetchGenerateSsoUrlDetails(AuthenticateUserInputRequest authenticateUserInputRequest) {
+		byte[] staticKey =Base64.getDecoder().decode(propertiesManager.hrmsMsevaSsoKey);
+		final byte[] StaticIv = new byte[16];
+		String inputData = authenticateUserInputRequest.getTokenName()+":"+authenticateUserInputRequest.getUserName();
+		String encdata = encryptData(inputData,staticKey,StaticIv);	
+		Map<String, Object> map1= ReadValuesFromApi2(encdata);
+		return map1;
+	}
+
+
+
+	private Map<String, Object> ReadValuesFromApi2(String decpData) {
+	    int respValue = 0;
+
+		Map<String, Object> finalResults =new  HashMap<String,Object>();
+
+	    StringBuilder uri = new StringBuilder();
+	    uri.append(propertiesManager.hrmsEsevaApiHost).append(propertiesManager.hrmsEsevaApiEndPoint); // Construct URL for HRMS Eseva call
+
+	    Map<String, Object> apiRequest = new HashMap<>();
+	    apiRequest.put(propertiesManager.hrmsEsevaApiRequestObject, decpData); //hrmsEsevaApiRequestObject
+
+	    try {
+	        Map<String, Object> responseMap = (Map<String, Object>) restCallRepository.fetchResult(uri, apiRequest);
+			// Map<String, Object> data = (Map<String, Object>) ((List<?>) responseMap.get("data")).get(0);
+
+	        if(responseMap != null) {
+	        	Object responseObj = responseMap.get(propertiesManager.hrmsEsevaApiResponseObjectResp); //hrmsEsevaApiResponseObjectResp
+	        	
+				respValue = Integer.parseInt(responseObj.toString());
+	        	if (respValue == 0) {
+					finalResults.put("status", msevaSsoConstants.AUTHFAIL_RESPSTATUS);
+                    return finalResults;
+                }
+	        }
+
+
+	        if (responseMap != null && responseMap.containsKey(propertiesManager.hrmsEsevaApiResponseObjectData)) {
+	            List<Map<String, Object>> dataList = (List<Map<String, Object>>) responseMap.get(propertiesManager.hrmsEsevaApiResponseObjectData);
+	            
+				if (!dataList.isEmpty()) {
+	                Map<String, Object> dataObject = dataList.get(0);
+	                String responseVal = (String) dataObject.get(propertiesManager.hrmsEsevaApiResponseObjectResp);
+	                respValue = Integer.parseInt(responseVal);
+	                String username = (String) dataObject.get(propertiesManager.hrmsEsevaApiResponseObjectUsername);
+	                username = username.replaceAll("[^a-zA-Z0-9\\s]", "");
+	                String mobno = (String) dataObject.get(propertiesManager.hrmsEsevaApiResponseObjectMobile);
+	                String distname = (String) dataObject.get(propertiesManager.hrmsEsevaApiResponseObjectDistrict);
+	                String email = (String) dataObject.get(propertiesManager.hrmsEsevaApiResponseObjectEmail);
+	                String fullname = (String) dataObject.get(propertiesManager.hrmsEsevaApiResponseObjectFullname);
+	                fullname = fullname.replaceAll("[^a-zA-Z0-9\\s]", "");
+	                
+	                // Create EmployeeSearchCriteria and set the username in codes
+	                EmployeeSearchCriteria criteria = new EmployeeSearchCriteria();
+	                criteria.setCodes(Collections.singletonList(username)); 
+
+	                RequestInfo requestInfo = createRequestInfo();
+	               
+	                RequestInfoWrapper requestInfoWrapper = new RequestInfoWrapper();
+	                requestInfoWrapper.setRequestInfo(requestInfo);
+
+	                // Call the internal API search function directly
+	                EmployeeResponse employeeResponse = employeeService.search(criteria, requestInfoWrapper.getRequestInfo());
+					List<Employee> employees = employeeResponse.getEmployees();
+					System.out.println(employeeResponse.getEmployees());
+			
+					Employee firstEmployee11 = employees.get(0);
+	                if (employeeResponse != null && !employeeResponse.getEmployees().isEmpty() && firstEmployee11.getUser() != null) { 
+						if (employees != null && !employees.isEmpty()) {
+							// Fetch the first employee
+							Employee firstEmployee = employees.get(0);
+						
+							// finalResults.put("name", firstEmployee.getUser().getName());
+							finalResults.put("tenantId", firstEmployee.getUser().getTenantId());
+							
+							// finalResults.put("type", firstEmployee.getUser().getType());
+						}
+	                	//employee already exists
+	                	respValue = 4;
+	                	return finalResults;
+	                } else {
+	                	if(mobno.isEmpty()) {
+	                		respValue = 2; 
+							finalResults.put("status", msevaSsoConstants.SAVEFAIL_MOB_RESPSTATUS);
+	                		return finalResults;
+	                	}
+	                    
+	                    RequestInfo requestMdmsInfo = createMdmsRequestInfo();
+	                    
+	                    MdmsResponse response = mdmsService.fetchMDMSDataTenant(requestMdmsInfo, msevaSsoConstants.FETCH_MDMSDATA_TENTANTID);
+
+						String mdmsResp = response.toString();
+	                    String formattedJson = mdmsResp.substring("MdmsResponse(".length(), mdmsResp.length() - 1);
+	                    mdmsResp = "{" + formattedJson + "}";
+	                    mdmsResp = mdmsResp.replace("=", ":");
+	                 
+	                    Map<String, List<String>> distTenantMap = createTenantMapper(mdmsResp);
+	                    
+	                    
+	                    List<String> cityCodes = new ArrayList<>();
+	                    
+	                    if (distTenantMap.containsKey(distname)) {
+	                        cityCodes = distTenantMap.get(distname);
+	                        if(cityCodes.isEmpty()) {
+	                        	respValue = 3; 
+								finalResults.put("status", msevaSsoConstants.SAVEFAIL_DIST_RESPSTATUS);
+								return finalResults;
+	                        }
+	                    } else {
+	                        respValue = 3;
+							finalResults.put("status", msevaSsoConstants.SAVEFAIL_DIST_RESPSTATUS);
+							return finalResults;
+	                    }
+	                    
+	                    requestInfo.setAuthToken(null);
+	                    org.egov.common.contract.request.User contractUser = new org.egov.common.contract.request.User();
+	   
+	                    contractUser = setContractUserDetails(fullname, username, mobno, email, cityCodes);
+	                    requestInfo.setUserInfo(contractUser);
+	                    
+	                    EmployeeRequest employeeRequest = new EmployeeRequest();
+	                    employeeRequest.setRequestInfo(requestInfo);
+	                    Employee newEmployee = new Employee();
+	                    newEmployee.setCode(username);
+	                    newEmployee.setDateOfAppointment(msevaSsoConstants.MSEVA_DOA);
+	                    newEmployee.setEmployeeStatus(msevaSsoConstants.EMPLOYEE_EMPSTATUS);
+	                    newEmployee.setEmployeeType(msevaSsoConstants.EMPLOYEE_EMPTYPE);
+	                    List<Assignment> assignments = setAssignmentDetails();
+	                    newEmployee.setAssignments(assignments);
+	                    newEmployee.setTenantId(cityCodes.get(0));
+	                    
+	                    org.egov.hrms.web.contract.User webUser = new org.egov.hrms.web.contract.User();
+	                    webUser = setUserDetails(username,mobno,cityCodes);
+	                    newEmployee.setUser(webUser);
+	                    List<Jurisdiction> jurisdictions = setJurisdictionsDetails(cityCodes);
+	                    newEmployee.setJurisdictions(jurisdictions);
+	                    
+	                    employeeRequest.setEmployees(Collections.singletonList(newEmployee));
+	                    
+	                    EmployeeResponse employeeSaveResponse = employeeService.create(employeeRequest); 
+                    	if(employeeSaveResponse != null) {
+                    		respValue = 5; 				
+							List<Employee> createdEmployee = employeeSaveResponse.getEmployees();
+							System.out.println(employeeResponse.getEmployees());
+					
+							Employee employeeObj = createdEmployee.get(0);
+							
+							finalResults.put("user", employeeObj.getUser().getName());
+							finalResults.put("tenantId", employeeObj.getUser().getTenantId());
+							
+							finalResults.put("type", employeeObj.getUser().getType());
+							finalResults.put("status", propertiesManager.hrmsMsevaUatApiEndPoint);
+							
+                    	}
+	                }
+	            }
+	        }
+	    } catch (Exception e) {
+	    	log.error("An error occurred: ", e);
+		
+	    }
+
+	    return finalResults;
+	}
 
 }
 

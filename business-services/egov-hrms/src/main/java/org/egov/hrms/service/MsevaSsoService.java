@@ -133,6 +133,7 @@ public class MsevaSsoService {
 	                // Call the internal API search function directly
 	                EmployeeResponse employeeResponse = employeeService.search(criteria, requestInfoWrapper.getRequestInfo());
 
+					System.out.println(employeeResponse);
 	                if (employeeResponse != null && !employeeResponse.getEmployees().isEmpty()) { 
 	                	//employee already exists
 	                	respValue = 4;
@@ -453,7 +454,8 @@ public class MsevaSsoService {
 	        	
 				respValue = Integer.parseInt(responseObj.toString());
 	        	if (respValue == 0) {
-					finalResults.put("status", msevaSsoConstants.AUTHFAIL_RESPSTATUS);
+					finalResults.put("message", msevaSsoConstants.AUTHFAIL_RESPSTATUS);
+					finalResults.put("code", 0);
                     return finalResults;
                 }
 	        }
@@ -494,18 +496,21 @@ public class MsevaSsoService {
 							// Fetch the first employee
 							Employee firstEmployee = employees.get(0);
 						
-							// finalResults.put("name", firstEmployee.getUser().getName());
+							finalResults.put("userName", firstEmployee.getUser().getName());
 							finalResults.put("tenantId", firstEmployee.getUser().getTenantId());
-							
-							// finalResults.put("type", firstEmployee.getUser().getType());
+							finalResults.put("employeeType", firstEmployee.getUser().getType());
+							finalResults.put("url", propertiesManager.hrmsMsevaUatApiEndPoint);
 						}
 	                	//employee already exists
 	                	respValue = 4;
+						finalResults.put("code", 4);
+						
 	                	return finalResults;
 	                } else {
 	                	if(mobno.isEmpty()) {
 	                		respValue = 2; 
-							finalResults.put("status", msevaSsoConstants.SAVEFAIL_MOB_RESPSTATUS);
+							finalResults.put("message", msevaSsoConstants.SAVEFAIL_MOB_RESPSTATUS);
+							finalResults.put("code", 2);
 	                		return finalResults;
 	                	}
 	                    
@@ -527,12 +532,14 @@ public class MsevaSsoService {
 	                        cityCodes = distTenantMap.get(distname);
 	                        if(cityCodes.isEmpty()) {
 	                        	respValue = 3; 
-								finalResults.put("status", msevaSsoConstants.SAVEFAIL_DIST_RESPSTATUS);
+								finalResults.put("message", msevaSsoConstants.SAVEFAIL_DIST_RESPSTATUS);
+								finalResults.put("code", 3);
 								return finalResults;
 	                        }
 	                    } else {
 	                        respValue = 3;
-							finalResults.put("status", msevaSsoConstants.SAVEFAIL_DIST_RESPSTATUS);
+							finalResults.put("message", msevaSsoConstants.SAVEFAIL_DIST_RESPSTATUS);
+							finalResults.put("code", 3);
 							return finalResults;
 	                    }
 	                    
@@ -569,11 +576,12 @@ public class MsevaSsoService {
 					
 							Employee employeeObj = createdEmployee.get(0);
 							
-							finalResults.put("user", employeeObj.getUser().getName());
+							finalResults.put("userName", employeeObj.getUser().getName());
 							finalResults.put("tenantId", employeeObj.getUser().getTenantId());
 							
-							finalResults.put("type", employeeObj.getUser().getType());
-							finalResults.put("status", propertiesManager.hrmsMsevaUatApiEndPoint);
+							finalResults.put("employeeType", employeeObj.getUser().getType());
+							finalResults.put("url", propertiesManager.hrmsMsevaUatApiEndPoint);
+							finalResults.put("code", 5);
 							
                     	}
 	                }

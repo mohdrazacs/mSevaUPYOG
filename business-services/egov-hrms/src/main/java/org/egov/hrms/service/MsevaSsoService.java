@@ -37,7 +37,7 @@ import org.egov.hrms.web.contract.EmployeeSearchCriteria;
 import org.egov.hrms.web.contract.RequestInfoWrapper;
 //import org.egov.hrms.web.contract.User;
 //import org.egov.common.contract.request.User;
-
+import org.egov.hrms.web.contract.SsoResponce;
 import org.egov.hrms.web.contract.UserInfo;
 import org.egov.hrms.web.validator.EmployeeValidator;
 import org.egov.mdms.model.MdmsResponse;
@@ -499,7 +499,9 @@ public class MsevaSsoService {
 							finalResults.put("userName", firstEmployee.getUser().getName());
 							finalResults.put("tenantId", firstEmployee.getUser().getTenantId());
 							finalResults.put("employeeType", firstEmployee.getUser().getType());
-							finalResults.put("url", propertiesManager.hrmsMsevaUatApiEndPoint);
+							finalResults.put("message", msevaSsoConstants.EMPEXISTS_RESPSTATUS);
+							finalResults.put("url", propertiesManager.hrmsMsevaUatApiEndPoint);		
+							// finalResults.put("code", 4);
 						}
 	                	//employee already exists
 	                	respValue = 4;
@@ -577,10 +579,10 @@ public class MsevaSsoService {
 							Employee employeeObj = createdEmployee.get(0);
 							
 							finalResults.put("userName", employeeObj.getUser().getName());
-							finalResults.put("tenantId", employeeObj.getUser().getTenantId());
-							
+							finalResults.put("tenantId", employeeObj.getUser().getTenantId());							
 							finalResults.put("employeeType", employeeObj.getUser().getType());
-							finalResults.put("url", propertiesManager.hrmsMsevaUatApiEndPoint);
+							finalResults.put("message", msevaSsoConstants.EMPSAVE_SUCCESS_RESPSTATUS);
+							finalResults.put("url", propertiesManager.hrmsMsevaUatApiEndPoint);		
 							finalResults.put("code", 5);
 							
                     	}

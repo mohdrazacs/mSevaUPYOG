@@ -37,7 +37,7 @@ import org.egov.hrms.web.contract.EmployeeSearchCriteria;
 import org.egov.hrms.web.contract.RequestInfoWrapper;
 //import org.egov.hrms.web.contract.User;
 //import org.egov.common.contract.request.User;
-
+import org.egov.hrms.web.contract.SsoResponce;
 import org.egov.hrms.web.contract.UserInfo;
 import org.egov.hrms.web.validator.EmployeeValidator;
 import org.egov.mdms.model.MdmsResponse;
@@ -45,6 +45,7 @@ import org.egov.mdms.model.MdmsResponse;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -98,6 +99,7 @@ public class MsevaSsoService {
 	    try {
 	        Map<String, Object> responseMap = (Map<String, Object>) restCallRepository.fetchResult(uri, apiRequest);
 	        
+			System.out.println(responseMap);
 	        if(responseMap != null) {
 	        	Object responseObj = responseMap.get(propertiesManager.hrmsEsevaApiResponseObjectResp); //hrmsEsevaApiResponseObjectResp
 	        	respValue = Integer.parseInt(responseObj.toString());
@@ -131,6 +133,7 @@ public class MsevaSsoService {
 	                // Call the internal API search function directly
 	                EmployeeResponse employeeResponse = employeeService.search(criteria, requestInfoWrapper.getRequestInfo());
 
+					System.out.println(employeeResponse);
 	                if (employeeResponse != null && !employeeResponse.getEmployees().isEmpty()) { 
 	                	//employee already exists
 	                	respValue = 4;
@@ -373,6 +376,7 @@ public class MsevaSsoService {
 		
 		int rd = ReadValuesFromApi(encdata);
         String message = null;
+		System.out.println(rd);
         if(rd == 0) {
         	message = msevaSsoConstants.AUTHFAIL_RESPSTATUS;
         }
